@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "143929783562",
+    "project_id": "funfriday-1619d",
+    "storage_bucket": "funfriday-1619d.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:143929783562:android:f8c78ee3aa0c0d333076f3",
+        "android_client_info": {
+          "package_name": "com.example.funfriday"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC-T1YnpHnZ-5pebVtF54XYe5tNNfO3oik"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
