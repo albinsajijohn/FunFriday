@@ -40,7 +40,6 @@ fun SummaryScreen(
     }
 
     /* ---------- LOADING ---------- */
-
     if (card == null) {
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             CircularProgressIndicator()
@@ -48,13 +47,24 @@ fun SummaryScreen(
         return
     }
 
-    /* ---------- ACCESS CONTROL ---------- */
-
+    /* ---------- ACCESS CHECK ---------- */
     if (card?.createdBy != currentUserId) {
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             Text("Only the creator can view the summary")
         }
         return
+    }
+
+    /* ---------- CALCULATIONS ---------- */
+
+    val totalCounts = selections
+        .flatMap { it.items }
+        .groupingBy { it }
+        .eachCount()
+
+    val grandTotal = totalCounts.entries.sumOf { entry ->
+        val item = menu.find { it.id == entry.key }
+        (item?.price ?: 0.0) * entry.value
     }
 
     /* ---------- UI ---------- */
@@ -89,76 +99,46 @@ fun SummaryScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
 
             /* ---------- TOTAL ORDERS ---------- */
 
             item {
-                Text(
-                    "Total Orders",
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold
-                )
+                Text("Total Orders", fontWeight = FontWeight.Bold)
 
                 Spacer(Modifier.height(8.dp))
 
-                val totalCounts = selections
-                    .flatMap { it.items }
-                    .groupingBy { it }
-                    .eachCount()
+                totalCounts.forEach { (menuId, count) ->
+                    val item = menu.find { it.id == menuId }
+                    val price = item?.price ?: 0.0
+                    val subtotal = price * count
 
-                if (totalCounts.isEmpty()) {
-                    Text("No orders yet", color = Color.Gray)
-                } else {
-                    totalCounts.forEach { (menuId, count) ->
-                        val name =
-                            menu.find { it.id == menuId }?.name ?: "Unknown Item"
-
-                        Card(
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(14.dp),
-                            elevation = CardDefaults.cardElevation(4.dp)
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(14.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(
-                                    name,
-                                    modifier = Modifier.weight(1f),
-                                    fontWeight = FontWeight.Medium
-                                )
-                                Surface(
-                                    color = Color(0xFFE23744),
-                                    shape = RoundedCornerShape(20.dp)
-                                ) {
-                                    Text(
-                                        "x$count",
-                                        modifier = Modifier.padding(
-                                            horizontal = 12.dp,
-                                            vertical = 4.dp
-                                        ),
-                                        color = Color.White,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                }
-                            }
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Column(Modifier.padding(12.dp)) {
+                            Text(item?.name ?: "Unknown", fontWeight = FontWeight.Medium)
+                            Text("₹ $price × $count = ₹ $subtotal")
                         }
-                        Spacer(Modifier.height(6.dp))
                     }
                 }
+
+                Spacer(Modifier.height(10.dp))
+
+                Text(
+                    "Grand Total: ₹ $grandTotal",
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFFE23744)
+                )
             }
 
             /* ---------- USER ORDERS ---------- */
 
             item {
-                Spacer(Modifier.height(12.dp))
-                Text(
-                    "User Orders",
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold
-                )
+                Spacer(Modifier.height(16.dp))
+                Text("User Orders", fontWeight = FontWeight.Bold)
             }
 
             items(selections) { sel ->
@@ -169,28 +149,40 @@ fun SummaryScreen(
 
                 val userName = vm.userNameCache[sel.userId] ?: "Loading..."
 
-                val selectedNames = sel.items.map { id ->
-                    menu.find { it.id == id }?.name ?: "Unknown"
+                val itemCounts = sel.items.groupingBy { it }.eachCount()
+
+                val userTotal = itemCounts.entries.sumOf { entry ->
+                    val price = menu.find { it.id == entry.key }?.price ?: 0.0
+                    price * entry.value
                 }
 
                 Card(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(16.dp),
-                    elevation = CardDefaults.cardElevation(6.dp)
+                    shape = RoundedCornerShape(14.dp)
                 ) {
-                    Column(Modifier.padding(16.dp)) {
+                    Column(Modifier.padding(14.dp)) {
 
-                        Text(
-                            userName,
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
-                        )
+                        Text(userName, fontWeight = FontWeight.Bold)
+
+                        Spacer(Modifier.height(6.dp))
+
+                        itemCounts.forEach { (menuId, count) ->
+                            val item = menu.find { it.id == menuId }
+                            val price = item?.price ?: 0.0
+                            val subtotal = price * count
+
+                            Text("• ${item?.name}  x$count  = ₹ $subtotal")
+                        }
 
                         Spacer(Modifier.height(8.dp))
+                        Divider()
+                        Spacer(Modifier.height(6.dp))
 
-                        selectedNames.forEach { item ->
-                            Text("• $item")
-                        }
+                        Text(
+                            "Total: ₹ $userTotal",
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFFE23744)
+                        )
                     }
                 }
             }
