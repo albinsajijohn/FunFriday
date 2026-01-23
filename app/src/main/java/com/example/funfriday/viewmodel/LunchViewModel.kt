@@ -120,13 +120,19 @@ class LunchViewModel(
 
     /* ---------------- SAVE USER SELECTION ---------------- */
 
-    fun saveUserSelection(cardId: String, selectedMenuIds: List<String>, onDone: () -> Unit) {
+    fun saveUserSelection(
+        cardId: String,
+        selectedItems: Map<String, Int>,
+        onDone: () -> Unit
+    ) {
         viewModelScope.launch {
             val uid = Firebase.auth.currentUser?.uid ?: return@launch
-            repo.saveSelection(cardId, Selection(uid, selectedMenuIds))
+            repo.saveSelection(cardId, Selection(uid, selectedItems))
             onDone()
         }
     }
+
+
 
     /* ---------------- LOAD SUMMARY ---------------- */
 
