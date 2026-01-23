@@ -45,7 +45,7 @@ class LunchRepository {
         return try {
             val doc = db.collection("lunchCards")
                 .document(cardId)
-                .collection("menus")   // ✅ CORRECT
+                .collection("menus")     // ✅ CORRECT COLLECTION
                 .document()
 
             val finalItem = item.copy(id = doc.id)
@@ -64,7 +64,7 @@ class LunchRepository {
         return try {
             val snap = db.collection("lunchCards")
                 .document(cardId)
-                .collection("menus")   // ✅ CORRECT
+                .collection("menus")     // ✅ CORRECT
                 .get()
                 .await()
 
@@ -84,7 +84,7 @@ class LunchRepository {
         return try {
             db.collection("lunchCards")
                 .document(cardId)
-                .collection("menus")   // ✅ FIXED HERE
+                .collection("menus")     // ✅ FIXED (menus, not menu)
                 .document(menuId)
                 .delete()
                 .await()
@@ -96,7 +96,7 @@ class LunchRepository {
         }
     }
 
-    /* ---------------- USER SELECTION ---------------- */
+    /* ---------------- USER SELECTION (CART) ---------------- */
 
     suspend fun saveSelection(
         cardId: String,
@@ -106,7 +106,7 @@ class LunchRepository {
             db.collection("lunchCards")
                 .document(cardId)
                 .collection("selections")
-                .document(selection.userId)
+                .document(selection.userId)   // one selection per user
                 .set(selection)
                 .await()
 
@@ -117,7 +117,9 @@ class LunchRepository {
         }
     }
 
-    suspend fun getSelections(cardId: String): Result<List<Selection>> {
+    suspend fun getSelections(
+        cardId: String
+    ): Result<List<Selection>> {
         return try {
             val snap = db.collection("lunchCards")
                 .document(cardId)
@@ -160,20 +162,19 @@ class LunchRepository {
         }
     }
 
-
-//delete a created lunchCard
+    /* ---------------- DELETE LUNCH CARD ---------------- */
 
     suspend fun deleteCard(cardId: String): Result<Unit> {
         return try {
-            Firebase.firestore
-                .collection("lunchCards")
+            db.collection("lunchCards")
                 .document(cardId)
                 .delete()
                 .await()
+
             Result.success(Unit)
+
         } catch (e: Exception) {
             Result.failure(e)
         }
     }
-
 }
