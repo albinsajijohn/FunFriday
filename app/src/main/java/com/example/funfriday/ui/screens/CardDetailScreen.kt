@@ -4,7 +4,11 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -32,7 +36,8 @@ fun CardDetailScreen(
     val currentUid = Firebase.auth.currentUser?.uid
     val isCreator = card?.createdBy == currentUid
 
-    var selectedItems by remember { mutableStateOf(setOf<String>()) }
+    // ✅ IMMUTABLE STATE MAP (CORRECT)
+    var selectedItems by remember { mutableStateOf<Map<String, Int>>(emptyMap()) }
 
     // manual add
     var name by remember { mutableStateOf("") }
@@ -64,17 +69,17 @@ fun CardDetailScreen(
 
         /* ---------------- MANUAL ADD ---------------- */
         if (isCreator) {
-            Card(Modifier.fillMaxWidth()) {
+            Card {
                 Column(Modifier.padding(12.dp)) {
 
                     Text("Add Menu Manually", fontWeight = FontWeight.Bold)
 
-                    OutlinedTextField(name, { name = it }, label = { Text("Name") }, modifier = Modifier.fillMaxWidth())
-                    OutlinedTextField(category, { category = it }, label = { Text("Category") }, modifier = Modifier.fillMaxWidth())
-                    OutlinedTextField(price, { price = it }, label = { Text("Price") }, modifier = Modifier.fillMaxWidth())
-                    OutlinedTextField(imageUrl, { imageUrl = it }, label = { Text("Image URL") }, modifier = Modifier.fillMaxWidth())
+                    OutlinedTextField(name, { name = it }, label = { Text("Name") })
+                    OutlinedTextField(category, { category = it }, label = { Text("Category") })
+                    OutlinedTextField(price, { price = it }, label = { Text("Price") })
+                    OutlinedTextField(imageUrl, { imageUrl = it }, label = { Text("Image URL") })
 
-                    Spacer(Modifier.height(6.dp))
+                    Spacer(Modifier.height(8.dp))
 
                     Button(
                         modifier = Modifier.fillMaxWidth(),
@@ -87,7 +92,10 @@ fun CardDetailScreen(
                                 price.toDoubleOrNull() ?: 0.0,
                                 imageUrl
                             ) {
-                                name = ""; category = ""; price = ""; imageUrl = ""
+                                name = ""
+                                category = ""
+                                price = ""
+                                imageUrl = ""
                             }
                         }
                     ) {
@@ -101,7 +109,7 @@ fun CardDetailScreen(
 
         /* ---------------- JSON IMPORT ---------------- */
         if (isCreator) {
-            Card(Modifier.fillMaxWidth()) {
+            Card {
                 Column(Modifier.padding(12.dp)) {
 
                     Text("Import Menu via JSON", fontWeight = FontWeight.Bold)
@@ -111,7 +119,7 @@ fun CardDetailScreen(
                         onValueChange = { jsonText = it },
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(140.dp),
+                            .height(120.dp),
                         placeholder = {
                             Text("""[{"name":"Biriyani","category":"Main","price":180,"imageUrl":""}]""")
                         }
@@ -131,9 +139,7 @@ fun CardDetailScreen(
                                     jsonText = ""
                                     jsonError = null
                                 },
-                                onError = {
-                                    jsonError = it
-                                }
+                                onError = { jsonError = it }
                             )
                         }
                     ) {
@@ -150,15 +156,20 @@ fun CardDetailScreen(
 
         LazyColumn(modifier = Modifier.weight(1f)) {
             items(menu) { item ->
-                MenuRowWithDelete(
+                MenuRowWithQuantity(
                     item = item,
-                    onDelete = { deleteItem = item },
-                    selected = selectedItems.contains(item.id),
-                    onChecked = {
+                    quantity = selectedItems[item.id] ?: 0,
+                    onIncrement = {
+                        selectedItems = selectedItems + (item.id to ((selectedItems[item.id] ?: 0) + 1))
+                    },
+                    onDecrement = {
+                        val current = selectedItems[item.id] ?: 0
                         selectedItems =
-                            if (it) selectedItems + item.id
-                            else selectedItems - item.id
-                    }
+                            if (current <= 1) selectedItems - item.id
+                            else selectedItems + (item.id to (current - 1))
+                    },
+                    showDelete = isCreator,
+                    onDelete = { deleteItem = item }
                 )
                 Divider()
             }
@@ -169,16 +180,16 @@ fun CardDetailScreen(
             Button(
                 modifier = Modifier.fillMaxWidth(),
                 onClick = {
-                    vm.saveUserSelection(cardId, selectedItems.toList()) {
+                    vm.saveUserSelection(cardId, selectedItems) {
                         nav.popBackStack()
                     }
                 }
             ) {
-                Text("Add to Cart (${selectedItems.size})")
+                Text("Add to Cart (${selectedItems.values.sum()} items)")
             }
         }
 
-        /* ---------------- VIEW SUMMARY BUTTON ---------------- */
+        /* ---------------- VIEW SUMMARY ---------------- */
         if (isCreator) {
             Spacer(Modifier.height(8.dp))
             Button(
@@ -190,7 +201,7 @@ fun CardDetailScreen(
         }
     }
 
-    /* ---------------- DELETE DIALOG ---------------- */
+    /* ---------------- DELETE CONFIRM ---------------- */
     deleteItem?.let { item ->
         AlertDialog(
             onDismissRequest = { deleteItem = null },
@@ -214,10 +225,12 @@ fun CardDetailScreen(
 }
 
 @Composable
-fun MenuRowWithDelete(
+fun MenuRowWithQuantity(
     item: MenuItem,
-    selected: Boolean,
-    onChecked: (Boolean) -> Unit,
+    quantity: Int,
+    onIncrement: () -> Unit,
+    onDecrement: () -> Unit,
+    showDelete: Boolean,
     onDelete: () -> Unit
 ) {
     Row(
@@ -233,10 +246,26 @@ fun MenuRowWithDelete(
             Text("₹ ${item.price}")
         }
 
-        Checkbox(checked = selected, onCheckedChange = onChecked)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            IconButton(onClick = onDecrement, enabled = quantity > 0) {
+                Icon(Icons.Default.KeyboardArrowDown, contentDescription = "Decrease")
+            }
 
-        IconButton(onClick = onDelete) {
-            Icon(Icons.Default.Delete, contentDescription = null, tint = Color.Red)
+            Text(
+                quantity.toString(),
+                modifier = Modifier.padding(horizontal = 6.dp),
+                fontWeight = FontWeight.Bold
+            )
+
+            IconButton(onClick = onIncrement) {
+                Icon(Icons.Default.KeyboardArrowUp, contentDescription = "Increase")
+            }
+        }
+
+        if (showDelete) {
+            IconButton(onClick = onDelete) {
+                Icon(Icons.Default.Delete, contentDescription = "Delete Item", tint = Color.Red)
+            }
         }
     }
 }
