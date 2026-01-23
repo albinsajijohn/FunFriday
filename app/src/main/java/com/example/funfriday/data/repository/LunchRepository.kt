@@ -159,4 +159,21 @@ class LunchRepository {
             Result.failure(e)
         }
     }
+
+
+//delete a created lunchCard
+
+    suspend fun deleteCard(cardId: String): Result<Unit> {
+        return try {
+            Firebase.firestore
+                .collection("lunchCards")
+                .document(cardId)
+                .delete()
+                .await()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
 }

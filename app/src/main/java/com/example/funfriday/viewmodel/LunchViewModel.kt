@@ -208,6 +208,16 @@ class LunchViewModel(
         }
     }
 
+//    delete a lunchCard
+
+    fun deleteCard(cardId: String) {
+        viewModelScope.launch {
+            repo.deleteCard(cardId)
+            loadCards() // refresh home list
+        }
+    }
+
+
     /* ---------------- GET SINGLE CARD ---------------- */
 
     fun getCard(cardId: String, onResult: (LunchCard?) -> Unit) {
