@@ -24,6 +24,8 @@ class LunchViewModel(
     private val repo: LunchRepository = LunchRepository()
 ) : ViewModel() {
 
+    /* ---------------- STATE ---------------- */
+
     val cards = mutableStateListOf<LunchCard>()
     val menu = mutableStateListOf<MenuItem>()
     val selections = mutableStateListOf<Selection>()
@@ -46,7 +48,10 @@ class LunchViewModel(
 
     /* ---------------- CREATE CARD ---------------- */
 
-    fun createCard(title: String, onDone: (String?) -> Unit) {
+    fun createCard(
+        title: String,
+        onDone: (String?) -> Unit
+    ) {
         viewModelScope.launch {
             val uid = Firebase.auth.currentUser?.uid ?: return@launch
             loading.value = true
@@ -54,13 +59,24 @@ class LunchViewModel(
             val result = repo.createLunchCard(title, uid)
 
             loading.value = false
-
             if (result.isSuccess) onDone(result.getOrNull())
             else error.value = result.exceptionOrNull()?.message
         }
     }
 
-    /* ---------------- ADD MENU ---------------- */
+    /* ---------------- LOAD CARDS ---------------- */
+
+    fun loadCards() {
+        viewModelScope.launch {
+            val result = repo.getAllCards()
+            if (result.isSuccess) {
+                cards.clear()
+                cards.addAll(result.getOrNull()!!)
+            }
+        }
+    }
+
+    /* ---------------- ADD MENU ITEM ---------------- */
 
     fun addMenu(
         cardId: String,
@@ -106,19 +122,16 @@ class LunchViewModel(
         }
     }
 
-    /* ---------------- LOAD CARDS ---------------- */
+    /* ---------------- DELETE MENU ITEM ---------------- */
 
-    fun loadCards() {
+    fun deleteMenu(cardId: String, menuId: String) {
         viewModelScope.launch {
-            val result = repo.getAllCards()
-            if (result.isSuccess) {
-                cards.clear()
-                cards.addAll(result.getOrNull()!!)
-            }
+            repo.deleteMenuItem(cardId, menuId)
+            loadMenu(cardId)
         }
     }
 
-    /* ---------------- SAVE USER SELECTION ---------------- */
+    /* ---------------- SAVE USER CART (WITH QUANTITY) ---------------- */
 
     fun saveUserSelection(
         cardId: String,
@@ -132,7 +145,29 @@ class LunchViewModel(
         }
     }
 
+    /* ---------------- LOAD CURRENT USER CART ---------------- */
 
+    fun loadUserSelection(
+        cardId: String,
+        onResult: (Selection?) -> Unit
+    ) {
+        viewModelScope.launch {
+            val uid = Firebase.auth.currentUser?.uid ?: return@launch
+            try {
+                val snap = Firebase.firestore
+                    .collection("lunchCards")
+                    .document(cardId)
+                    .collection("selections")
+                    .document(uid)
+                    .get()
+                    .await()
+
+                onResult(snap.toObject(Selection::class.java))
+            } catch (e: Exception) {
+                onResult(null)
+            }
+        }
+    }
 
     /* ---------------- LOAD SUMMARY ---------------- */
 
@@ -148,7 +183,11 @@ class LunchViewModel(
 
     /* ---------------- JSON FILE UPLOAD ---------------- */
 
-    fun uploadMenuFromJson(context: Context, cardId: String, uri: Uri) {
+    fun uploadMenuFromJson(
+        context: Context,
+        cardId: String,
+        uri: Uri
+    ) {
         viewModelScope.launch {
             try {
                 val inputStream = context.contentResolver.openInputStream(uri)
@@ -205,28 +244,21 @@ class LunchViewModel(
         }
     }
 
-    /* ---------------- DELETE MENU ITEM ---------------- */
-
-    fun deleteMenu(cardId: String, menuId: String) {
-        viewModelScope.launch {
-            repo.deleteMenuItem(cardId, menuId)
-            loadMenu(cardId)
-        }
-    }
-
-//    delete a lunchCard
+    /* ---------------- DELETE CARD ---------------- */
 
     fun deleteCard(cardId: String) {
         viewModelScope.launch {
             repo.deleteCard(cardId)
-            loadCards() // refresh home list
+            loadCards()
         }
     }
 
-
     /* ---------------- GET SINGLE CARD ---------------- */
 
-    fun getCard(cardId: String, onResult: (LunchCard?) -> Unit) {
+    fun getCard(
+        cardId: String,
+        onResult: (LunchCard?) -> Unit
+    ) {
         viewModelScope.launch {
             try {
                 val snap = Firebase.firestore
