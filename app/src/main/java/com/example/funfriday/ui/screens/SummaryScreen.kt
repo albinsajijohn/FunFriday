@@ -31,6 +31,8 @@ fun SummaryScreen(
     val currentUserId = Firebase.auth.currentUser?.uid
     var card by remember { mutableStateOf<LunchCard?>(null) }
 
+    /* ---------- LOAD DATA ---------- */
+
     LaunchedEffect(cardId) {
         vm.loadMenu(cardId)
         vm.loadSelections(cardId)
@@ -40,31 +42,42 @@ fun SummaryScreen(
     }
 
     /* ---------- LOADING ---------- */
+
     if (card == null) {
-        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
             CircularProgressIndicator()
         }
         return
     }
 
-    /* ---------- ACCESS CHECK ---------- */
+    /* ---------- ACCESS CONTROL ---------- */
+
     if (card?.createdBy != currentUserId) {
-        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
             Text("Only the creator can view the summary")
         }
         return
     }
 
-    /* ---------- CALCULATIONS ---------- */
+    /* ---------- TOTAL ITEM COUNTS ---------- */
 
-    val totalCounts = selections
-        .flatMap { it.items }
-        .groupingBy { it }
-        .eachCount()
+    val totalCounts: Map<String, Int> =
+        selections
+            .flatMap { it.items.entries }
+            .groupingBy { it.key }
+            .fold(0) { acc, entry -> acc + entry.value }
 
-    val grandTotal = totalCounts.entries.sumOf { entry ->
-        val item = menu.find { it.id == entry.key }
-        (item?.price ?: 0.0) * entry.value
+    /* ---------- GRAND TOTAL ---------- */
+
+    val grandTotal: Double = totalCounts.entries.sumOf { entry ->
+        val price = menu.firstOrNull { it.id == entry.key }?.price ?: 0.0
+        price * entry.value
     }
 
     /* ---------- UI ---------- */
@@ -105,21 +118,29 @@ fun SummaryScreen(
             /* ---------- TOTAL ORDERS ---------- */
 
             item {
-                Text("Total Orders", fontWeight = FontWeight.Bold)
+                Text(
+                    "Total Orders",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold
+                )
 
                 Spacer(Modifier.height(8.dp))
 
                 totalCounts.forEach { (menuId, count) ->
-                    val item = menu.find { it.id == menuId }
+                    val item = menu.firstOrNull { it.id == menuId }
                     val price = item?.price ?: 0.0
                     val subtotal = price * count
 
                     Card(
                         modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp)
+                        shape = RoundedCornerShape(12.dp),
+                        elevation = CardDefaults.cardElevation(4.dp)
                     ) {
                         Column(Modifier.padding(12.dp)) {
-                            Text(item?.name ?: "Unknown", fontWeight = FontWeight.Medium)
+                            Text(
+                                item?.name ?: "Unknown Item",
+                                fontWeight = FontWeight.Medium
+                            )
                             Text("₹ $price × $count = ₹ $subtotal")
                         }
                     }
@@ -138,7 +159,11 @@ fun SummaryScreen(
 
             item {
                 Spacer(Modifier.height(16.dp))
-                Text("User Orders", fontWeight = FontWeight.Bold)
+                Text(
+                    "User Orders",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold
+                )
             }
 
             items(selections) { sel ->
@@ -149,29 +174,33 @@ fun SummaryScreen(
 
                 val userName = vm.userNameCache[sel.userId] ?: "Loading..."
 
-                val itemCounts = sel.items.groupingBy { it }.eachCount()
+                val userItemCounts = sel.items
 
-                val userTotal = itemCounts.entries.sumOf { entry ->
-                    val price = menu.find { it.id == entry.key }?.price ?: 0.0
+                val userTotal = userItemCounts.entries.sumOf { entry ->
+                    val price = menu.firstOrNull { it.id == entry.key }?.price ?: 0.0
                     price * entry.value
                 }
 
                 Card(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(14.dp)
+                    shape = RoundedCornerShape(14.dp),
+                    elevation = CardDefaults.cardElevation(6.dp)
                 ) {
                     Column(Modifier.padding(14.dp)) {
 
-                        Text(userName, fontWeight = FontWeight.Bold)
+                        Text(
+                            userName,
+                            fontWeight = FontWeight.Bold
+                        )
 
                         Spacer(Modifier.height(6.dp))
 
-                        itemCounts.forEach { (menuId, count) ->
-                            val item = menu.find { it.id == menuId }
+                        userItemCounts.forEach { (menuId, qty) ->
+                            val item = menu.firstOrNull { it.id == menuId }
                             val price = item?.price ?: 0.0
-                            val subtotal = price * count
+                            val subtotal = price * qty
 
-                            Text("• ${item?.name}  x$count  = ₹ $subtotal")
+                            Text("• ${item?.name}  x$qty  = ₹ $subtotal")
                         }
 
                         Spacer(Modifier.height(8.dp))
